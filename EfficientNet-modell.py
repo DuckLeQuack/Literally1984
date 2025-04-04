@@ -1,5 +1,5 @@
 from tensorflow.keras.applications import EfficientNetB0
-from tensorflow.keras.layers import Dense, Flatten, Dropout
+from tensorflow.keras.layers import Dense, Dropout
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
@@ -9,7 +9,7 @@ import os
 
 # 🚀 Sjekk om GPU er tilgjengelig
 if tf.config.experimental.list_physical_devices('GPU'):
-    print("✅ Using Metal GPU")
+    print("✅ Using GPU")
 else:
     print("⚠️ Running on CPU")
 
@@ -27,7 +27,14 @@ PATIENCE = 5
 def load_existing_model():
     if os.path.exists(MODEL_NAME):
         print(f"🔄 Loading existing model: {MODEL_NAME}")
-        return load_model(MODEL_NAME)
+        try:
+            model = load_model(MODEL_NAME)
+            print("✅ Model loaded successfully.")
+            return model
+        except Exception as e:
+            print(f"❌ Error loading model: {str(e)}")
+            print("⚠️ Model is corrupted or incompatible. Training a new model.")
+            return None
     print("⚠️ No existing model found, building a new one.")
     return None
 
@@ -88,7 +95,7 @@ def build_model(num_classes):
 def train_model(model, train_data, val_data):
     callbacks = [
         EarlyStopping(monitor='val_accuracy', patience=PATIENCE, restore_best_weights=True),
-        ModelCheckpoint(MODEL_NAME, save_best_only=True, monitor='val_accuracy', mode='max')
+        ModelCheckpoint(MODEL_NAME, save_best_only=True, monitor='val_accuracy', mode='max', save_weights_only=False)  # Save entire model
     ]
     print("\n🚀 Starting training...")
     try:

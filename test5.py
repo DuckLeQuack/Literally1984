@@ -7,7 +7,7 @@ from sklearn.metrics import classification_report
 import random
 
 # Configuration
-IMAGE_SIZE = (64, 64)  # Resize all images to 64x64
+IMAGE_SIZE = (480, 480)  # Resize all images to 64x64
 DATASET_PATH = 'data'  # Root dataset folder
 
 # PLU mapping
@@ -100,7 +100,7 @@ def predict_image(image_path):
     
     prediction = clf.predict(img)
     return prediction[0]
-
+a
 # Example usage
 test_image = 'test.png'
 predicted_label = predict_image(test_image)
