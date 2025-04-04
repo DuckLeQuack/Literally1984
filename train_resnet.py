@@ -16,7 +16,7 @@ print(f"🚀 Using device: {device}")
 # Config
 DATA_DIR = "data/"
 BATCH_SIZE = 32
-EPOCHS = 20
+EPOCHS = 10
 LEARNING_RATE = 1e-4
 NUM_CLASSES = len(os.listdir(DATA_DIR))
 ALPHA = 0.4  # mixup hyperparameter
@@ -32,6 +32,9 @@ transform = transforms.Compose([
 
 # Dataset split
 full_dataset = datasets.ImageFolder(DATA_DIR, transform=transform)
+import json
+with open("class_names.json", "w") as f:
+    json.dump(full_dataset.dataset.classes, f)
 val_size = int(0.2 * len(full_dataset))
 train_size = len(full_dataset) - val_size
 train_data, val_data = random_split(full_dataset, [train_size, val_size])

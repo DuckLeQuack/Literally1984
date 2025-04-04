@@ -3,6 +3,7 @@ from torchvision import transforms, models
 from torchvision.models import ResNet50_Weights
 from PIL import Image
 import os
+import json
 
 # Settings
 MODEL_PATH = "resnet_beast_best.pth"
@@ -19,8 +20,9 @@ transform = transforms.Compose([
     transforms.Normalize([0.5]*3, [0.5]*3)
 ])
 
-# Load label names from folders
-class_names = sorted(os.listdir(DATA_DIR))
+# Load label names from JSON file
+with open("class_names.json") as f:
+    class_names = json.load(f)
 
 # Load image
 def load_image(img_path):
