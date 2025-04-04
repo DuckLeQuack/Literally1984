@@ -1,124 +1,99 @@
 from tensorflow.keras.applications import EfficientNetB0
-from tensorflow.keras.layers import Dense, Flatten
-from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Flatten, Dropout
+from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.preprocessing import image
+from tensorflow.keras.utils import load_img, img_to_array
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.optimizers import Adam
 import numpy as np
 import matplotlib.pyplot as plt
+import os
+import tensorflow as tf
 
-# 1. Datagenerator for dataforsterkning
-datagen = ImageDataGenerator(
-    rescale=1./255,
-    rotation_range=20,
-    width_shift_range=0.2,
-    height_shift_range=0.2,
-    shear_range=0.2,
-    zoom_range=0.2,
-    horizontal_flip=True,
-    validation_split=0.2  # 20% til validering
-)
+# 🚀 Check GPU or CPU availability
+if tf.config.experimental.list_physical_devices('GPU'):
+    print("✅ Using Metal GPU")
+else:
+    print("⚠️ Running on CPU")
 
-# 2. Last inn trenings- og valideringsdata
-train_data = datagen.flow_from_directory(
-    'data/',
-    target_size=(224, 224),
-    batch_size=32,
-    class_mode='categorical',
-    subset='training'
-)
+# ✅ Global Configuration
+MODEL_NAME = 'efficientnet_model.h5'
+BATCH_SIZE = 16
+EPOCHS = 10
+IMG_SIZE = (224, 224)
+LEARNING_RATE = 0.0001
+TRAIN_DIR = 'data/'
+PATIENCE = 5
 
-val_data = datagen.flow_from_directory(
-    'data/',
-    target_size=(224, 224),
-    batch_size=32,
-    class_mode='categorical',
-    subset='validation'
-)
+# 🌟 Load an existing model if available
+def load_existing_model():
+    if os.path.exists(MODEL_NAME):
+        print(f"🔄 Loading existing model: {MODEL_NAME}")
+        return load_model(MODEL_NAME)
+    print("⚠️ No existing model found, building a new one.")
+    return None
 
-# 3. Bygg modellen
-model = Sequential([
-    EfficientNetB0(input_shape=(224, 224, 3), include_top=False, weights='imagenet'),
-    Flatten(),
-    Dense(128, activation='relu'),
-    Dense(len(train_data.class_indices), activation='softmax')  # Dynamisk antall klasser
-])
+# 📦 Data Augmentation and Loading
+def create_data_generators():
+    datagen = ImageDataGenerator(
+        rescale=1./255,
+        rotation_range=40,
+        width_shift_range=0.3,
+        height_shift_range=0.3,
+        shear_range=0.3,
+        zoom_range=0.3,
+        horizontal_flip=True,
+        brightness_range=[0.8, 1.2],
+        validation_split=0.2
+    )
+    print("🔄 Loading training data...")
+    try:
+        train_data = datagen.flow_from_directory(
+            TRAIN_DIR,
+            target_size=IMG_SIZE,
+            batch_size=BATCH_SIZE,
+            class_mode='categorical',
+            subset='training'
+        )
+        val_data = datagen.flow_from_directory(
+            TRAIN_DIR,
+            target_size=IMG_SIZE,
+            batch_size=BATCH_SIZE,
+            class_mode='categorical',
+            subset='validation'
+        )
+        if len(train_data) == 0 or len(val_data) == 0:
+            print("❌ No images found. Check your data folder structure.")
+            exit(1)
+        print("✅ Data successfully loaded.")
+        return train_data, val_data
+    except Exception as e:
+        print("❌ Error loading data:", str(e))
+        exit(1)
 
-model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+# 🧠 Build the EfficientNet Model
+def build_model(num_classes):
+    model = Sequential([
+        EfficientNetB0(input_shape=(224, 224, 3), include_top=False, weights='imagenet'),
+        Flatten(),
+        Dropout(0.5),
+        Dense(128, activation='relu'),
+        Dense(num_classes, activation='softmax')
+    ])
+    model.compile(optimizer=Adam(learning_rate=LEARNING_RATE), loss='categorical_crossentropy', metrics=['accuracy'])
+    return model
 
-# 4. Tren modellen
-print("\n🚀 Starter trening...\n")
-history = model.fit(train_data, validation_data=val_data, epochs=10)
-
-# 5. Evaluering av modellen
-print("\n📊 Evaluering av modellen...\n")
-loss, accuracy = model.evaluate(val_data)
-print(f"Valideringsnøyaktighet: {accuracy * 100:.2f}%")
-
-# 6. Lagre modellen
-model.save('efficientnet_model.h5')
-print("\n💾 Modell lagret som efficientnet_model.h5\n")
-
-# 7. Test med et nytt bilde
-def predict_image(image_path):
-    # Last opp og forbered bildet
-    img = image.load_img(image_path, target_size=(224, 224))
-    img_array = image.img_to_array(img)
-    img_array = np.expand_dims(img_array, axis=0) / 255.0
-
-    # Forutsi klassen
-    predictions = model.predict(img_array)
-    predicted_class = np.argmax(predictions)
-    class_name = list(train_data.class_indices.keys())[predicted_class]
-
-    # Skriv ut resultatet
-    print(f"📷 Predikert klasse: {class_name}")
-    return class_name
-
-# Test med et eksempelbilde
-example_image = 'data/paprika/img1.jpg'  # Oppdater med riktig sti
-predict_image(example_image)
-
-# 8. Visualisere treningshistorikken
-def plot_training_history(history):
-    plt.figure(figsize=(12, 5))
-
-    # Nøyaktighet
-    plt.subplot(1, 2, 1)
-    plt.plot(history.history['accuracy'], label='Training Accuracy')
-    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
-    plt.title('Modellnøyaktighet')
-    plt.xlabel('Epoker')
-    plt.ylabel('Nøyaktighet')
-    plt.legend()
-
-    # Tap
-    plt.subplot(1, 2, 2)
-    plt.plot(history.history['loss'], label='Training Loss')
-    plt.plot(history.history['val_loss'], label='Validation Loss')
-    plt.title('Modelltap')
-    plt.xlabel('Epoker')
-    plt.ylabel('Tap')
-    plt.legend()
-
-    plt.show()
-
-plot_training_history(history)
-
-# 9. Visualisere et eksempelbilde fra treningsdata
-def show_sample_image(data):
-    images, labels = next(data)
-    plt.imshow(images[0])
-    predicted_label = list(train_data.class_indices.keys())[np.argmax(labels[0])]
-    plt.title(f"Etikett: {predicted_label}")
-    plt.axis('off')
-    plt.show()
-
-show_sample_image(train_data)
-
-
-# Test med et nytt bilde etter trening
-example_image = 'data/paprika/img1.jpg'  # Oppdater med riktig sti
-predict_image(example_image)
-
-# Eller direkte kall med funksjonen
-predict_image('data/banan/banana1.jpg')
+# 🏋️‍♂️ Train the Model
+def train_model(model, train_data, val_data):
+    callbacks = [
+        EarlyStopping(monitor='val_accuracy', patience=PATIENCE, restore_best_weights=True),
+        ModelCheckpoint(MODEL_NAME, save_best_only=True, monitor='val_accuracy', mode='max')
+    ]
+    print("\n🚀 Starting training...")
+    try:
+        history = model.fit(train_data, validation_data=val_data, epochs=EPOCHS, callbacks=callbacks, verbose=1)
+        print("✅ Training completed successfully.")
+        return history
+    except Exception as e:
+        print("❌ Error during training:", str(e))
+        exit(1)
