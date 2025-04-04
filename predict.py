@@ -51,3 +51,4 @@ for i in range(3):
     label = class_names[top_idxs[0][i].item()]
     confidence = top_probs[0][i].item() * 100
     print(f"{i+1}: {label} ({confidence:.2f}%)")
+    #tester
