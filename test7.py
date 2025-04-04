@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
 # Configuration
-IMAGE_SIZE = (64, 64)  # Resize all images to 64x64
+IMAGE_SIZE = (240, 240)  # Resize all images to 64x64
 DATASET_PATH = 'data'  # Root dataset folder
 
 # Check for GPU availability and set memory growth for TensorFlow
@@ -59,6 +59,15 @@ def augment_image(image):
     adjusted = cv2.convertScaleAbs(image, alpha=alpha)
     return adjusted
 
+# Crop the center of the image before resizing
+def crop_center(image, crop_size):
+    center_x, center_y = image.shape[1] // 2, image.shape[0] // 2
+    crop_width, crop_height = crop_size
+    start_x = center_x - crop_width // 2
+    start_y = center_y - crop_height // 2
+    cropped_image = image[start_y:start_y + crop_height, start_x:start_x + crop_width]
+    return cropped_image
+
 # Load images and labels
 def load_images(dataset_path):
     X = []
@@ -83,7 +92,11 @@ def load_images(dataset_path):
                 # Apply contrast adjustment
                 img = augment_image(img)
                 
-                img = cv2.resize(img, IMAGE_SIZE)  # Resize
+                # Crop the center of the image (use a smaller size for cropping, e.g., 48x48)
+                img = crop_center(img, (48, 48))
+                
+                # Resize the cropped image to IMAGE_SIZE (64x64)
+                img = cv2.resize(img, IMAGE_SIZE)  
                 X.append(img)  # Keep as 2D array
                 y.append(label)  # Folder name is the label
 
@@ -134,7 +147,13 @@ def predict_image(image_path):
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     if img is None:
         raise ValueError("Image not found or unreadable.")
+    
+    # Crop the center of the image (use a smaller size for cropping, e.g., 48x48)
+    img = crop_center(img, (200, 200))
+    
+    # Resize the cropped image to IMAGE_SIZE (64x64)
     img = cv2.resize(img, IMAGE_SIZE)
+    
     img = img.astype('float32') / 255.0  # Normalize
     img = img.reshape(1, IMAGE_SIZE[0], IMAGE_SIZE[1], 1)  # Reshape for prediction
     
