@@ -1,8 +1,5 @@
+/cropped_screenshots/
 /data/
-/val/
-/my_trained_model/
+/new_data/
 /train/
-/vid/
-/venv/
-/mittmiljo/
-/venv310/
+/val/
