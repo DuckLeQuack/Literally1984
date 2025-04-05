@@ -92,15 +92,16 @@ def load_images(dataset_path):
                 # Apply contrast adjustment
                 img = augment_image(img)
                 
-                # Crop the center of the image (use a smaller size for cropping, e.g., 48x48)
-                img = crop_center(img, (48, 48))
+                # Crop the center of the image (use a smaller size for cropping, e.g., 200x200)
+                #img = crop_center(img, (200, 200))
                 
-                # Resize the cropped image to IMAGE_SIZE (64x64)
+                # Resize the cropped image to IMAGE_SIZE (240x240)
                 img = cv2.resize(img, IMAGE_SIZE)  
                 X.append(img)  # Keep as 2D array
                 y.append(label)  # Folder name is the label
 
     return np.array(X), np.array(y)
+
 
 # Load data
 X, y = load_images(DATASET_PATH)
@@ -148,10 +149,10 @@ def predict_image(image_path):
     if img is None:
         raise ValueError("Image not found or unreadable.")
     
-    # Crop the center of the image (use a smaller size for cropping, e.g., 48x48)
-    img = crop_center(img, (200, 200))
+    # Crop the center of the image (use a smaller size for cropping, e.g., 200x200)
+    #img = crop_center(img, (200, 200))
     
-    # Resize the cropped image to IMAGE_SIZE (64x64)
+    # Resize the cropped image to IMAGE_SIZE (240x240)
     img = cv2.resize(img, IMAGE_SIZE)
     
     img = img.astype('float32') / 255.0  # Normalize
