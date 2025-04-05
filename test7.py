@@ -8,7 +8,8 @@ from sklearn.metrics import classification_report
 
 # Configuration
 IMAGE_SIZE = (240, 240)  # Resize all images to 64x64
-DATASET_PATH = 'data'  # Root dataset folder
+TRAINING_DATA_PATH = 'new_data/data_80'  # Root training dataset folder
+TESTING_DATA_PATH = 'new_data/data_20'  # Root testing dataset folder
 
 # Check for GPU availability and set memory growth for TensorFlow
 gpus = tf.config.list_physical_devices('GPU')  # List GPUs available
@@ -54,19 +55,9 @@ plu_mapping = {
 
 # Image augmentation function for contrast adjustment
 def augment_image(image):
-    # Contrast adjustment
     alpha = random.uniform(0.5, 1.5)  # Random contrast factor
     adjusted = cv2.convertScaleAbs(image, alpha=alpha)
     return adjusted
-
-# Crop the center of the image before resizing
-def crop_center(image, crop_size):
-    center_x, center_y = image.shape[1] // 2, image.shape[0] // 2
-    crop_width, crop_height = crop_size
-    start_x = center_x - crop_width // 2
-    start_y = center_y - crop_height // 2
-    cropped_image = image[start_y:start_y + crop_height, start_x:start_x + crop_width]
-    return cropped_image
 
 # Load images and labels
 def load_images(dataset_path):
@@ -92,9 +83,6 @@ def load_images(dataset_path):
                 # Apply contrast adjustment
                 img = augment_image(img)
                 
-                # Crop the center of the image (use a smaller size for cropping, e.g., 200x200)
-                #img = crop_center(img, (200, 200))
-                
                 # Resize the cropped image to IMAGE_SIZE (240x240)
                 img = cv2.resize(img, IMAGE_SIZE)  
                 X.append(img)  # Keep as 2D array
@@ -102,23 +90,22 @@ def load_images(dataset_path):
 
     return np.array(X), np.array(y)
 
-
-# Load data
-X, y = load_images(DATASET_PATH)
+# Load training data
+X_train, y_train = load_images(TRAINING_DATA_PATH)
 
 # Normalize pixel values to [0, 1]
-X = X.astype('float32') / 255.0
+X_train = X_train.astype('float32') / 255.0
 
 # Convert labels to integers
-label_to_index = {label: idx for idx, label in enumerate(set(y))}
-y = np.array([label_to_index[label] for label in y])
+label_to_index = {label: idx for idx, label in enumerate(set(y_train))}
+y_train = np.array([label_to_index[label] for label in y_train])
 
 # Train/test split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
 
 # Reshape for CNN input
 X_train = X_train.reshape(-1, IMAGE_SIZE[0], IMAGE_SIZE[1], 1)  # Add channel dimension
-X_test = X_test.reshape(-1, IMAGE_SIZE[0], IMAGE_SIZE[1], 1)
+X_val = X_val.reshape(-1, IMAGE_SIZE[0], IMAGE_SIZE[1], 1)
 
 # Build a simple CNN model
 model = tf.keras.Sequential([
@@ -135,43 +122,49 @@ model = tf.keras.Sequential([
 model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
 # Train the model with GPU acceleration (if available)
-model.fit(X_train, y_train, validation_data=(X_test, y_test), epochs=5, batch_size=32)
+model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=5, batch_size=64)
 
-# Evaluate the model
+# Evaluate the model on testing data (data_20)
+X_test, y_test = load_images(TESTING_DATA_PATH)
+
+# Normalize the test images
+X_test = X_test.astype('float32') / 255.0
+X_test = X_test.reshape(-1, IMAGE_SIZE[0], IMAGE_SIZE[1], 1)
+
+# Convert the test labels to integers
+y_test = np.array([label_to_index[label] for label in y_test])
+
+# Predict and evaluate results
 y_pred = model.predict(X_test)
 y_pred_classes = np.argmax(y_pred, axis=1)
 
 # Print classification report
 print(classification_report(y_test, y_pred_classes))
 
-def predict_image(image_path):
-    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    if img is None:
-        raise ValueError("Image not found or unreadable.")
-    
-    # Crop the center of the image (use a smaller size for cropping, e.g., 200x200)
-    #img = crop_center(img, (200, 200))
-    
-    # Resize the cropped image to IMAGE_SIZE (240x240)
-    img = cv2.resize(img, IMAGE_SIZE)
-    
-    img = img.astype('float32') / 255.0  # Normalize
-    img = img.reshape(1, IMAGE_SIZE[0], IMAGE_SIZE[1], 1)  # Reshape for prediction
-    
-    # Ensure prediction uses GPU if available
-    prediction = model.predict(img)
-    predicted_class = np.argmax(prediction, axis=1)[0]
-    return predicted_class
+# Check and print predicted vs actual labels
 
-# Example usage
-test_image = 'test.png'
-predicted_label_index = predict_image(test_image)
+total = 0
+correct = 0
+wrong = 0
+for i in range(len(X_test)):
+    actual_label = list(label_to_index.keys())[list(label_to_index.values()).index(y_test[i])]
+    predicted_label_idx = y_pred_classes[i]
+    predicted_label = list(label_to_index.keys())[list(label_to_index.values()).index(predicted_label_idx)]
+    
+    # Translate using PLU mapping
+    actual_product_name = plu_mapping.get(actual_label, "Unknown Product")
+    predicted_product_name = plu_mapping.get(predicted_label, "Unknown Product")
+    
+    #print(f"Image {i + 1}:")
+    #print(f"  Actual Label: {actual_product_name} (PLU: {actual_label})")
+    #print(f"  Predicted Label: {predicted_product_name} (PLU: {predicted_label})")
+    print()
+    if actual_product_name == predicted_product_name:
+        correct += 1
+    else:
+        wrong += 1
+    total += 1
 
-# Translate the predicted label using the PLU mapping
-product_class = list(label_to_index.keys())[list(label_to_index.values()).index(predicted_label_index)]
-
-product_name = plu_mapping[f"{product_class}"]
-
-# Print the predicted PLU and product name
-print(f"Predicted class: {product_class}")
-print(f"Name of Product: {product_name}")
+print(" ")
+print(f"Correct: {correct}/{total}")
+print(f"Wrong: {wrong}/{total}")
