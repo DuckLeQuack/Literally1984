@@ -39,7 +39,8 @@ plu_mapping = {
     '7044610874661': 'Pepsi Max 0,5l flaske',
     '7048840205868': 'Frokostyoghurt Skogsbær 125g pose Q',
     '7071688004713': 'Original Havsalt 190g Sørlandschips',
-    '7622210410337': 'Kvikk Lunsj 3x47g Freia'
+    '7622210410337': 'Kvikk Lunsj 3x47g Freia',
+    '69': 'Empty'
 }
 
 # Set GPU memory growth
@@ -149,3 +150,8 @@ for i in range(len(y_true)):
 print("\n🧠 PLU Name Matching Accuracy:")
 print(f"✅ Correct: {correct}/{total}")
 print(f"❌ Wrong: {wrong}/{total}")
+
+# Save the trained model
+MODEL_SAVE_PATH = 'my_trained_model.h5'
+model.save(MODEL_SAVE_PATH)
+print(f"✅ Model saved at {MODEL_SAVE_PATH}")
