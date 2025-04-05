@@ -122,7 +122,7 @@ model = tf.keras.Sequential([
 model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
 # Train the model with GPU acceleration (if available)
-model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=5, batch_size=64)
+model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10, batch_size=8)
 
 # Evaluate the model on testing data (data_20)
 X_test, y_test = load_images(TESTING_DATA_PATH)
